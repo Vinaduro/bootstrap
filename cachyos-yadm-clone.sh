@@ -8,11 +8,13 @@ SSH_CONFIG_PATH="${HOME}/.ssh/config"
 EXPECTED_GITHUB_USER="Vinaduro"
 
 log() {
-  printf '[clone-helper] %s\n' "$*"
+  printf "[clone-helper] %s
+" "$*"
 }
 
 fail() {
-  printf '[clone-helper] ERROR: %s\n' "$*" >&2
+  printf "[clone-helper] ERROR: %s
+" "$*" >&2
   exit 1
 }
 
@@ -38,7 +40,7 @@ main() {
     cp -av "${SSH_CONFIG_PATH}" "${SSH_CONFIG_PATH}.pre-dotfiles-clone.bak.$(date +%F-%H%M%S)"
   fi
 
-  cat > "${PUBKEY_PATH}" <<'KEYEOF'
+  cat > "${PUBKEY_PATH}" <<KEYEOF
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC3tvrDE6pp378Z0ZDYjnwnv2mjjsbC8cw8Yv8O5Pl6UEBcBXlX+RwiwbR36YF8Icf0spRorwKo7ENXJ80chV9iYc3EYJW1ho5vzv5d2+sNtwGGn4QNSuqoaU9fQ4KBAYY+Ojd+hZzbXaVPHjMr6fE1N1RBKkhG2zh4CIqFo1Y13gmOyg5i74o+9+shrlFWP8CRykxbF5mb4j2z5i2gYnKdDlwpEAUrOTburqqLNgu0TTQhc+ziBLv2x7LAydPKZcWWUXhh5srxflQdTEqe093Lh7yUp0uXJhuOoHvOCsx2ErDHoRb+poDaDTdaxpz9oXV0ELHnC1Ae6ZxyZW1y3xVQb4YsDsW4WdYRVcfk+SNjKPqjtmlDci6Rr+j/JmnCB/fvChKp/mNko0FejrPSJPI8i0SSBDiNKh8JTbdjFrdL7+kw6PcD7cKrluvwxk7WtwYM1O7dz7V9KaMU+q2SfMBy7O2UzpsHwrpSGk958/XYRWlxglCRHW7nJPwyFNBZO88= vinad@muon
 KEYEOF
   chmod 644 "${PUBKEY_PATH}"
@@ -54,14 +56,18 @@ EOFCONF
 
   log "Testing GitHub SSH identity"
   SSH_TEST_OUTPUT="$(ssh -T git@github.com 2>&1 || true)"
-  printf '%s\n' "${SSH_TEST_OUTPUT}"
+  printf "%s
+" "${SSH_TEST_OUTPUT}"
 
   if ! grep -Fq "Hi ${EXPECTED_GITHUB_USER}!" <<<"${SSH_TEST_OUTPUT}"; then
     fail "GitHub SSH authentication did not match ${EXPECTED_GITHUB_USER}. Refusing to clone."
   fi
 
-  log "Cloning dotfiles repo with yadm"
-  yadm clone "${DOTFILES_REPO}"
+  log "Removing temporary ~/.ssh/config so yadm can check out the tracked SSH config cleanly"
+  mv -v "${SSH_CONFIG_PATH}" "${SSH_CONFIG_PATH}.bootstrap-temp.used"
+
+  log "Cloning dotfiles repo with explicit SSH options"
+  GIT_SSH_COMMAND="ssh -o IdentityAgent=${BW_SSH_SOCK} -o IdentitiesOnly=yes -i ${PUBKEY_PATH}"     yadm clone "${DOTFILES_REPO}"
 
   log "Done. Next suggested commands:"
   log "  BOOTSTRAP_APPLY=0 ~/.config/yadm/bootstrap"
